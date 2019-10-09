@@ -702,6 +702,14 @@ protected:
 };
 
 #ifdef _WIN32
+inline wchar_t* convert(const std::string& as)
+{
+    size_t size = as.size() * sizeof(wchar_t) + 2;
+    wchar_t* buf = new wchar_t[size];
+    swprintf(buf, size, L"%S", as.c_str());
+    return buf;
+}
+
 /**
  * @brief
  * Windows: Logging to OutputDebugString
@@ -716,7 +724,9 @@ struct SinkOutputDebugString : public Sink
 
     void log(const Metadata& metadata, const std::string& message) override
     {
-        OutputDebugString(message.c_str());
+        wchar_t* msg = convert(message);
+        OutputDebugString(msg);
+        delete[] msg;
     }
 };
 #endif
@@ -876,7 +886,9 @@ struct SinkEventLog : public Sink
 {
     SinkEventLog(const std::string& ident, Severity severity, Type type = Type::all) : Sink(severity, type)
     {
-        event_log = RegisterEventSource(NULL, ident.c_str());
+        wchar_t* msg = convert(message);
+        event_log = RegisterEventSource(NULL, msg);
+        delete[] msg;
     }
 
     WORD get_type(Severity severity) const
@@ -903,8 +915,9 @@ struct SinkEventLog : public Sink
     void log(const Metadata& metadata, const std::string& message) override
     {
         // We need this temp variable because we cannot take address of rValue
-        const char* c_str = message.c_str();
-        ReportEvent(event_log, get_type(metadata.severity), 0, 0, NULL, 1, 0, &c_str, NULL);
+        wchar_t* msg = convert(message);
+        ReportEvent(event_log, get_type(metadata.severity), 0, 0, NULL, 1, 0, msg, NULL);
+        delete[] msg;
     }
 
 protected:
